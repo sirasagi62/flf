@@ -13,6 +13,7 @@ def func1():
       return `
 // 検索対象のリスト
 const allItems: string[] = [
+  '日本語',
   'Apple',
   'Banana',
   'Cherry',
@@ -26,185 +27,277 @@ const allItems: string[] = [
   'Mango',
   'Nectarine',
 ];
-
-// 簡易的なファジーマッチングアルゴリズム
+interface UnicodeKey {
+  ch: string,
+  full: string,
+  name: null
+}
+interface AsciiKey {
+  sequence: string,
+  ctrl: boolean,
+  shift: boolean,
+  meta: boolean,
+  name: string,
+  full: string
+}
+type KeyInput = UnicodeKey | AsciiKey
 /**
- * クエリがアイテム内に順番通りに（連続していなくても良い）出現するかチェックする。
- * 大文字・小文字は区別しない。
- * @param query 検索クエリ
- * @param item 検索対象の文字列
- * @returns マッチすれば true、そうでなければ false
+ * Blessed を使用したターミナルベースのファジーファインダーを実装するクラス。
  */
-const fuzzyMatch = (query: string, item: string): boolean => {
-  if (!query) return true; // クエリが空なら常にマッチ
+export class FluentFinderUI {
+  private screen: blessed.Widgets.Screen;
+  private input: blessed.Widgets.TextboxElement;
+  private list: blessed.Widgets.ListElement;
+  private preview: blessed.Widgets.BoxElement;
+  private allItems: string[];
 
-  const lowerQuery = query.toLowerCase();
-  const lowerItem = item.toLowerCase();
+  /**
+   * 簡易ファジーマッチング関数 (Subsequence Match)。
+   * クエリの文字がアイテムに同じ順序で出現するかをチェックします。
+   * @param query 検索クエリ
+   * @param item 検索対象の文字列
+   * @returns マッチした場合は true
+   */
+  private static fuzzyMatch(query: string, item: string): boolean {
+    if (!query) return true; // クエリが空なら常にマッチ
 
-  let queryIndex = 0;
+    const lowerQuery = query.toLowerCase();
+    const lowerItem = item.toLowerCase();
 
-  for (let itemIndex = 0; itemIndex < lowerItem.length; itemIndex++) {
-    // クエリの現在の文字とアイテムの現在の文字が一致するかチェック
-    if (lowerItem[itemIndex] === lowerQuery[queryIndex]) {
-      queryIndex++; // クエリの次の文字へ進む
-    }
+    let queryIndex = 0;
 
-    // クエリの全文字が見つかったらマッチ
-    if (queryIndex === lowerQuery.length) {
-      return true;
-    }
-  }
-
-  // アイテムを最後までチェックしてもクエリの全文字が見つからなかった
-  return false;
-};
-
-
-// fzf インスタンスの初期化を削除
-// const fzf = new Fzf(allItems);
-
-// blessed スクリーンを作成
-const screen = blessed.screen({
-  smartCSR: false,
-  title: 'Blessed Fuzzy Finder',
-  fullUnicode: true,
-});
-
-// 検索入力ボックス
-const input = blessed.textbox({
-  parent: screen,
-  top: 0,
-  left: 0,
-  height: 1,
-  width: '100%',
-  style: {
-    bg: 'blue',
-    fg: 'white'
-  },
-  content: '',
-});
-
-// 結果リストボックス
-let list = blessed.list({
-  parent: screen,
-  top: 1,
-  left: 0,
-  height: '100%-1',
-  width: '50%',
-  keys: true,
-  vi: true,
-  style: {
-    selected: {
-      bg: 'green',
-    },
-  },
-  items: allItems, // 初期表示
-});
-
-const preview = blessed.box({
-  parent: screen,
-  top: 1,
-  left: '50%',
-  height: '100%-1',
-  width: '50%',
-  keys: false,
-  vi: false,
-  style: {
-  }
-})
-preview.content = highlight(PLACEHOLDER, { language: 'python', ignoreIllegals: true })
-
-
-const updatePreviewWithTitle = (title: string) => {
-
-  preview.content = highlight(PLACEHOLDER + title, { language: "python", ignoreIllegals: true })
-  screen.render()
-}
-const updatePreview = () => {
-  //@ts-ignore
-  const idx = list.selected
-  const title = list.getItem(idx).content
-  updatePreviewWithTitle(title)
-}
-
-// --- UI操作とロジック ---
-
-// プログラム終了処理
-screen.key(['escape', 'q', 'C-c'], () => {
-  return process.exit(0);
-});
-
-// 入力ボックスにフォーカス
-input.focus();
-input.readInput();
-
-// リストの初期化関数
-const updateList = (items: string[]) => {
-  list.clearItems();
-  // フィルタリングされたアイテム名を設定
-  list.setItems(items);
-
-  // リストのカーソルをリセット
-  if (items.length > 0) {
-    list.select(0);
-  }
-
-  //@ts-ignore
-  //const idx = 0
-  const title = items[0] ?? ""
-
-  updatePreviewWithTitle(title)
-  //screen.render();
-};
-
-// 入力イベントの処理
-input.on('keypress', (_ch, key) => {
-  switch (key.name) {
-    case "up":
-      list.up(1)
-      updatePreview()
-      break;
-    case "down":
-      list.down(1)
-      updatePreview()
-      break;
-    case "enter":
-      //@ts-ignore
-      const listIdx: number = list.selected
-      const content = list.getItem(listIdx).content
-      screen.destroy()
-
-      console.log(content)
-      process.exit(0)
-    default:
-      const query = input.getValue().trim();
-
-      if (query === '') {
-        // クエリがない場合は全リストを表示
-        updateList(allItems);
-      } else {
-        // 簡易ファジーマッチングでフィルタリング
-        const filteredItems = allItems.filter(item => fuzzyMatch(query, item));
-
-        // リストを更新
-        updateList(filteredItems);
+    for (let itemIndex = 0; itemIndex < lowerItem.length; itemIndex++) {
+      // クエリの現在の文字とアイテムの現在の文字が一致するかチェック
+      if (lowerItem[itemIndex] === lowerQuery[queryIndex]) {
+        queryIndex++; // クエリの次の文字へ進む
       }
+
+      // クエリの全文字が見つかったらマッチ
+      if (queryIndex === lowerQuery.length) {
+        return true;
+      }
+    }
+
+    // アイテムを最後までチェックしてもクエリの全文字が見つからなかった
+    return false;
   }
 
-  screen.render()
+  constructor(items: string[]) {
+    this.allItems = items;
+    this.screen = this.createScreen();
+    this.input = this.createInput();
+    this.list = this.createList();
+    this.preview = this.createPreview();
 
-  // NOTE: blessedのkeypressイベントは、実際に値が変わる*前*に発火します。
-  // そのため、input.getValue()はまだ古い値です。
-  // 簡略化のため、Enterキー以外は現在の値をそのまま使用して検索します。
-  // 厳密には、値の変更を待つために 'change' イベントを使うか、
-  // keypressのロジック内でキー入力をシミュレートする必要がありますが、
-  // blessedのtextboxでは、単一キーの入力後、次のレンダリング時には値が更新されています。
-  // 今回は、現在のクエリ値を使用して検索処理を実行します。
+    this.setupLayout();
+    this.bindKeys();
+    this.bindInputEvents();
 
-  // blessedのtextboxの入力値を取得
-  // NOTE: keypressではこの時点で最新の値ではない可能性がありますが、
-  // blessedの仕様上、多くの場合、次の描画タイミングで結果が更新されます。
+    // 初期表示
+    this.updateList(this.allItems);
+    this.input.focus();
+    this.screen.render();
+  }
 
-});
+  private createScreen(): blessed.Widgets.Screen {
+    return blessed.screen({
+      smartCSR: false,
+      title: 'Blessed Fuzzy Finder',
+      fullUnicode: true,
+    });
+  }
 
-screen.render();
+  private createInput(): blessed.Widgets.TextboxElement {
+    return blessed.textbox({
+      parent: this.screen,
+      top: 0,
+      left: 0,
+      height: 1,
+      width: '100%',
+      style: {
+        bg: 'blue',
+        fg: 'white'
+      },
+      content: '',
+      //inputOnFocus: true, // `readInput` の代わりにこれを使用
+    });
+  }
+
+  private createList(): blessed.Widgets.ListElement {
+    return blessed.list({
+      parent: this.screen,
+      top: 1,
+      left: 0,
+      height: '100%-1',
+      width: '50%',
+      keys: true,
+      vi: true,
+      style: {
+        selected: {
+          bg: 'green',
+        },
+      },
+      items: [], // 初期表示
+    });
+  }
+
+  private createPreview(): blessed.Widgets.BoxElement {
+    const box = blessed.box({
+      parent: this.screen,
+      top: 1,
+      left: '50%',
+      height: '100%-1',
+      width: '50%',
+      keys: false,
+      vi: false,
+      style: {},
+    });
+    box.content = highlight(PLACEHOLDER, { language: 'python', ignoreIllegals: true });
+    return box;
+  }
+
+  private setupLayout(): void {
+    this.screen.append(this.input);
+    this.screen.append(this.list);
+    this.screen.append(this.preview);
+  }
+
+  /**
+   * プレビューの内容を更新します。
+   * @param title プレビューに含めるタイトル文字列
+   */
+  private updatePreviewWithTitle(title: string): void {
+    this.preview.content = highlight(PLACEHOLDER + title, { language: "python", ignoreIllegals: true });
+    this.screen.render();
+  }
+
+  /**
+   * 現在選択されているリストアイテムに基づいてプレビューを更新します。
+   */
+  private updatePreview(): void {
+    // @ts-ignore
+    const idx = this.list.selected;
+    const selectedItem = this.list.getItem(idx);
+    const title = selectedItem ? selectedItem.content : "";
+    this.updatePreviewWithTitle(title);
+  }
+
+  /**
+   * リストの内容をフィルタリングされたアイテムで更新します。
+   * @param items 表示するアイテムの配列
+   */
+  private updateList(items: string[]): void {
+    this.list.clearItems()
+    this.list.setItems(items);
+
+    // リストのカーソルをリセット
+    if (items.length > 0) {
+      this.list.select(0);
+    }
+
+    // プレビューの初期更新
+    const title = items[0] ?? "";
+    this.updatePreviewWithTitle(title);
+  }
+
+  /**
+   * 検索クエリが変更されたときの処理を行います。
+   * **`blessed.textbox` の `change` イベントを使用することで、値が更新された後に検索を実行できます。**
+   */
+  private handleQueryChange(key: KeyInput): void {
+    let query = this.input.value.trim();
+    if (key.name) {
+      if (key.name === 'backspace') {
+        query = [...query].slice(0, -1).join('')
+      } else if (key.name === 'enter') {
+        // @ts-ignore
+        const listIdx: number = this.list.selected;
+        const selectedItem = this.list.getItem(listIdx);
+
+        if (selectedItem) {
+          const content = selectedItem.content;
+          this.screen.destroy();
+          console.log(content);
+          process.exit(0);
+        }
+      } else if (key.name === 'up') {
+        this.list.up(1);
+        this.updatePreview();
+        return;
+      } else if (key.name === 'down') {
+        this.list.down(1);
+        this.updatePreview();
+        return;
+      } else if (!(key.ctrl || key.meta || key.shift) && key.name.length === 1) {
+        query += key.name
+      }
+    } else {
+      query += key.full
+    }
+
+
+    if (query === '') {
+      // クエリがない場合は全リストを表示
+      this.updateList(this.allItems);
+    } else {
+      // ファジーマッチングでフィルタリング
+      const filteredItems = this.allItems.filter(item =>
+        FluentFinderUI.fuzzyMatch(query, item)
+      );
+
+      // リストを更新
+      this.updateList(filteredItems);
+    }
+    this.screen.render();
+  }
+
+  /**
+   * UI要素と関連するキーバインドを設定します。
+   */
+  private bindKeys(): void {
+    // プログラム終了処理
+    this.screen.key(['escape', 'q', 'C-c'], () => {
+      return process.exit(0);
+    });
+
+    // 決定処理
+    // this.input.key(['enter'], () => {
+    //   // @ts-ignore
+    //   const listIdx: number = this.list.selected;
+    //   const selectedItem = this.list.getItem(listIdx);
+
+    //   if (selectedItem) {
+    //     const content = selectedItem.content;
+    //     this.screen.destroy();
+    //     console.log(content);
+    //     console.log(JSON.stringify(this.debugkeyLog))
+    //     process.exit(0);
+    //   }
+    // });
+  }
+
+  /**
+   * 入力ボックスのイベントを設定します。
+   */
+  private bindInputEvents(): void {
+    // テキストボックスの値が変更されるたびに検索をトリガー
+    // blessed の textbox の場合、keypress ではなく change イベントが値の変更後に発火します。
+    this.input.on('keypress', (ch, key) => {
+      this.handleQueryChange(key);
+    });
+
+    // NOTE: Enter キーを押した直後に `change` イベントも発火する可能性がありますが、
+    // 上の `bindKeys` で Enter 処理が先に実行され、プロセスが終了するため問題ありません。
+  }
+
+  /**
+   * アプリケーションを実行します。
+   */
+  public run(): void {
+    //this.screen.render();
+    this.input.readInput(); // 入力待ちを開始
+  }
+}
+
+const interactiveUI = new FluentFinderUI(allItems)
+interactiveUI.run()
