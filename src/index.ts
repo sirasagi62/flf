@@ -3,14 +3,16 @@ import os from "os"
 if (os.type() === "Darwin" && process.env.TERM?.includes("xterm"))
   process.env.TERM = "iTerm.app"
 
-import * as blessed from 'blessed';
-import highlight from 'cli-highlight'
+import blessed from 'blessed';
+import { highlight } from 'cli-highlight'
 
 const PLACEHOLDER = `
 def func1():
   comp = comp()
   if comp > 0:
       return `
+import { FlfCodeSearchCore } from "./core.js";
+import { exit } from "process";
 // 検索対象のリスト
 const allItems: string[] = [
   '日本語',
@@ -45,11 +47,13 @@ type KeyInput = UnicodeKey | AsciiKey
  * Blessed を使用したターミナルベースのファジーファインダーを実装するクラス。
  */
 export class FluentFinderUI {
+  private core: FlfCodeSearchCore;
   private screen: blessed.Widgets.Screen;
   private input: blessed.Widgets.TextboxElement;
   private list: blessed.Widgets.ListElement;
   private preview: blessed.Widgets.BoxElement;
   private allItems: string[];
+  private deinitCallback: () => void
 
   /**
    * 簡易ファジーマッチング関数 (Subsequence Match)。
@@ -82,12 +86,14 @@ export class FluentFinderUI {
     return false;
   }
 
-  constructor(items: string[]) {
+  constructor(items: string[], core: FlfCodeSearchCore, deinitCallback: () => void) {
     this.allItems = items;
+    this.deinitCallback = deinitCallback;
     this.screen = this.createScreen();
     this.input = this.createInput();
     this.list = this.createList();
     this.preview = this.createPreview();
+    this.core = core
 
     this.setupLayout();
     this.bindKeys();
@@ -210,15 +216,21 @@ export class FluentFinderUI {
       if (key.name === 'backspace') {
         query = [...query].slice(0, -1).join('')
       } else if (key.name === 'enter') {
-        // @ts-ignore
-        const listIdx: number = this.list.selected;
-        const selectedItem = this.list.getItem(listIdx);
+        try {
+          // @ts-ignore
+          const listIdx: number = this.list.selected;
+          const selectedItem = this.list.getItem(listIdx);
 
-        if (selectedItem) {
-          const content = selectedItem.content;
-          this.screen.destroy();
-          console.log(content);
-          process.exit(0);
+          if (selectedItem) {
+            const content = selectedItem.content;
+            this.screen.destroy();
+            console.log(content);
+          }
+        } finally {
+
+          this.deinitCallback()
+          setTimeout(()=>process.exit(0),1000)
+
         }
       } else if (key.name === 'up') {
         this.list.up(1);
@@ -260,34 +272,16 @@ export class FluentFinderUI {
       return process.exit(0);
     });
 
-    // 決定処理
-    // this.input.key(['enter'], () => {
-    //   // @ts-ignore
-    //   const listIdx: number = this.list.selected;
-    //   const selectedItem = this.list.getItem(listIdx);
-
-    //   if (selectedItem) {
-    //     const content = selectedItem.content;
-    //     this.screen.destroy();
-    //     console.log(content);
-    //     console.log(JSON.stringify(this.debugkeyLog))
-    //     process.exit(0);
-    //   }
-    // });
   }
 
   /**
    * 入力ボックスのイベントを設定します。
    */
   private bindInputEvents(): void {
-    // テキストボックスの値が変更されるたびに検索をトリガー
-    // blessed の textbox の場合、keypress ではなく change イベントが値の変更後に発火します。
     this.input.on('keypress', (ch, key) => {
       this.handleQueryChange(key);
     });
 
-    // NOTE: Enter キーを押した直後に `change` イベントも発火する可能性がありますが、
-    // 上の `bindKeys` で Enter 処理が先に実行され、プロセスが終了するため問題ありません。
   }
 
   /**
@@ -299,5 +293,9 @@ export class FluentFinderUI {
   }
 }
 
-const interactiveUI = new FluentFinderUI(allItems)
+const core = await FlfCodeSearchCore.init(":memory:")
+console.log("Indexing...")
+core.indexDirectory(".")
+const interactiveUI = new FluentFinderUI(allItems, () => core.deinit())
 interactiveUI.run()
+

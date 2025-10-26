@@ -30,10 +30,10 @@ interface QueryProps {
   dbPath: string
 }
 
-class FlfCodeSearchCore {
-  db?: VeqliteDB<ChunkMeta> = undefined;
+export class FlfCodeSearchCore {
+  db?: VeqliteDB<ChunkMeta>;
   public static async init(dbPath: string) {
-    const self = new FlfCodeSearchCore()
+    const _this = new FlfCodeSearchCore()
 
     // Initialize the embedding pipeline
     const embeddingModel = await HFLocalEmbeddingModel.init(
@@ -41,12 +41,12 @@ class FlfCodeSearchCore {
       384,
       "q8"
     );
-    self.db = new VeqliteDB<ChunkMeta>(embeddingModel, {
+    _this.db = new VeqliteDB<ChunkMeta>(embeddingModel, {
       // Use in-memory database
       embeddingDim: 384,
       dbPath
     });
-    return self
+    return _this
   }
   async indexDirectory(
     dirPath: string,
@@ -107,18 +107,31 @@ class FlfCodeSearchCore {
     }));
 
   }
+  deinit() {
+    if(this.db) this.db.close()
+  }
 }
 
-class FlfCodeSearchUI {
+export async function buildFlfCodeSearchCore(dbPath: string) {
+  const core = await FlfCodeSearchCore.init(dbPath)
+  return {
+    core,
+    [Symbol.dispose]() {
+      core.deinit()
+    }
+  };
+}
+
+export class FlfCodeSearchUI {
   core?: FlfCodeSearchCore;
   isJsonOutput: boolean = false
   constructor(isJsonOutput: boolean) {
     this.isJsonOutput = isJsonOutput
   }
   public static async init(dbPath: string, isJsonOutput: boolean) {
-    const self = new FlfCodeSearchUI(isJsonOutput)
-    self.core = await FlfCodeSearchCore.init(dbPath)
-    return self
+    const _this = new FlfCodeSearchUI(isJsonOutput)
+    _this.core = await FlfCodeSearchCore.init(dbPath)
+    return _this
   }
   async executeIndex(
     dirPath: string,
