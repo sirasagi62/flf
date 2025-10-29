@@ -1,17 +1,22 @@
-
-
+import { env } from "@huggingface/transformers";
 import {
   createParserFactory,
+  Point,
   readDirectoryAndChunk,
+  type LanguageEnum,
   type Options,
 } from "code-chopper";
-import * as path from "path";
-import { env } from "@huggingface/transformers";
+import * as path from "node:path";
 import {
   HFLocalEmbeddingModel,
   VeqliteDB,
   type BaseMetadata
-} from "veqlite"
+} from "veqlite";
+// import { BetterSqlite3Adapter } from "veqlite/better-sqlite3"
+//import { NodeSQLiteAdapter } from "veqlite/node";
+import { PGLiteAdapter } from "veqlite/pglite";
+//import { BunSQLiteAdapter } from "veqlite/bun";
+
 
 // Set environment variables for transformers.js
 env.allowRemoteModels = true; // Allow fetching models from Hugging Face Hub if not found locally
@@ -21,6 +26,11 @@ type ChunkMeta = {
   parentInfo: string
   inlineDocument: string
   entity: string
+  language: LanguageEnum
+  cursorInfo: {
+    start: Point
+    end: Point
+  }
 } & BaseMetadata
 
 interface QueryProps {
@@ -37,15 +47,15 @@ export class FlfCodeSearchCore {
 
     // Initialize the embedding pipeline
     const embeddingModel = await HFLocalEmbeddingModel.init(
-      "sirasagi62/granite-embedding-107m-multilingual-ONNX",
+      //"sirasagi62/granite-embedding-107m-multilingual-ONNX",
+      "sirasagi62/ruri-v3-70m-code-v0.1-ONNX",
       384,
       "q8"
     );
-    _this.db = new VeqliteDB<ChunkMeta>(embeddingModel, {
-      // Use in-memory database
-      embeddingDim: 384,
-      dbPath
-    });
+    const db = new PGLiteAdapter(dbPath)
+    // const db = new BetterSqlite3Adapter(dbPath)
+    // const db = new BunSQLiteAdapter(dbPath,"/opt/homebrew/Cellar/sqlite/3.50.4/lib/libsqlite3.dylib")
+    _this.db = await VeqliteDB.init<ChunkMeta>(embeddingModel, db);
     return _this
   }
   async indexDirectory(
@@ -62,7 +72,7 @@ export class FlfCodeSearchCore {
         }
         return true;
       },
-      excludeDirs: [/node_modules/, /\.git/],
+      excludeDirs: [/node_modules/, /\.git/,/dist/],
     };
 
 
@@ -76,7 +86,12 @@ export class FlfCodeSearchCore {
           fileName: path.basename(c.filePath),
           inlineDocument: c.boundary.docs ?? "",
           parentInfo: c.boundary.parent?.join(".") ?? "",
-          entity: c.boundary.name ?? ""
+          entity: c.boundary.name ?? "",
+          language: c.language,
+          cursorInfo: {
+            start: c.start,
+            end: c.end
+          }
         }
       })); // Use bulkInsertChunks for efficiency
       return chunks.length
@@ -102,8 +117,10 @@ export class FlfCodeSearchCore {
         ? result.content
         : result.content.substring(0, 100) + "...",
       entity: result.entity,
-      parent_info: result.parentInfo,
+      parentInfo: result.parentInfo,
       score: result.distance.toFixed(4),
+      language: result.language,
+      cursorInfo: result.cursorInfo
     }));
 
   }
@@ -213,7 +230,7 @@ export class FlfCodeSearchUI {
           console.log(`  Content Snippet: ${res.contentSnippet}`);
           console.log(`  Score: ${res.score}`);
           console.log(`  Entity: ${res.entity}`);
-          console.log(`  Parent: ${res.parent_info}`);
+          console.log(`  Parent: ${res.parentInfo}`);
         });
       }
     } else {

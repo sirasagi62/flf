@@ -1,34 +1,35 @@
 // Supress warining on iTerm
-import os from "os"
+import os from "node:os";
 if (os.type() === "Darwin" && process.env.TERM?.includes("xterm"))
   process.env.TERM = "iTerm.app"
 
 import blessed from 'blessed';
-import { highlight } from 'cli-highlight'
+import { highlight } from 'cli-highlight';
+import { FlfCodeSearchCore } from "./core.js";
+import { Point } from "code-chopper";
+import fs from "node:fs"
+import tty from "node:tty"
 
+const ttyIn = new tty.ReadStream(fs.openSync("/dev/tty", "r"));
+const ttyOut = new tty.WriteStream(fs.openSync("/dev/tty", "w"));
+ttyIn.resume();
+ttyIn.setRawMode(true);
+
+const LOGO = `
+
+ ███████╗ ██╗      ███████╗
+ ██╔════╝ ██║      ██╔════╝
+ █████╗   ██║      █████╗
+ ██╔══╝   ██║      ██╔══╝
+ ██║      ███████╗ ██║
+ ╚═╝      ╚══════╝ ╚═╝
+`
 const PLACEHOLDER = `
 def func1():
   comp = comp()
   if comp > 0:
       return `
-import { FlfCodeSearchCore } from "./core.js";
-import { exit } from "process";
 // 検索対象のリスト
-const allItems: string[] = [
-  '日本語',
-  'Apple',
-  'Banana',
-  'Cherry',
-  'Date',
-  'Elderberry',
-  'Fig',
-  'Grape',
-  'Honeydew',
-  'Kiwi',
-  'Lemon',
-  'Mango',
-  'Nectarine',
-];
 interface UnicodeKey {
   ch: string,
   full: string,
@@ -43,6 +44,17 @@ interface AsciiKey {
   full: string
 }
 type KeyInput = UnicodeKey | AsciiKey
+
+interface ListItem {
+  name: string,
+  content: string,
+  language: string
+  cursorInfo: {
+    start: Point,
+    end: Point
+  }
+}
+
 /**
  * Blessed を使用したターミナルベースのファジーファインダーを実装するクラス。
  */
@@ -52,43 +64,12 @@ export class FluentFinderUI {
   private input: blessed.Widgets.TextboxElement;
   private list: blessed.Widgets.ListElement;
   private preview: blessed.Widgets.BoxElement;
-  private allItems: string[];
-  private deinitCallback: () => void
 
-  /**
-   * 簡易ファジーマッチング関数 (Subsequence Match)。
-   * クエリの文字がアイテムに同じ順序で出現するかをチェックします。
-   * @param query 検索クエリ
-   * @param item 検索対象の文字列
-   * @returns マッチした場合は true
-   */
-  private static fuzzyMatch(query: string, item: string): boolean {
-    if (!query) return true; // クエリが空なら常にマッチ
+  private currentResult: ListItem[] = []
 
-    const lowerQuery = query.toLowerCase();
-    const lowerItem = item.toLowerCase();
 
-    let queryIndex = 0;
 
-    for (let itemIndex = 0; itemIndex < lowerItem.length; itemIndex++) {
-      // クエリの現在の文字とアイテムの現在の文字が一致するかチェック
-      if (lowerItem[itemIndex] === lowerQuery[queryIndex]) {
-        queryIndex++; // クエリの次の文字へ進む
-      }
-
-      // クエリの全文字が見つかったらマッチ
-      if (queryIndex === lowerQuery.length) {
-        return true;
-      }
-    }
-
-    // アイテムを最後までチェックしてもクエリの全文字が見つからなかった
-    return false;
-  }
-
-  constructor(items: string[], core: FlfCodeSearchCore, deinitCallback: () => void) {
-    this.allItems = items;
-    this.deinitCallback = deinitCallback;
+  constructor(core: FlfCodeSearchCore, initList: ListItem[]) {
     this.screen = this.createScreen();
     this.input = this.createInput();
     this.list = this.createList();
@@ -100,14 +81,24 @@ export class FluentFinderUI {
     this.bindInputEvents();
 
     // 初期表示
-    this.updateList(this.allItems);
+    this.updateList(initList);
+    this.updatePreviewWithTitle(LOGO)
     this.input.focus();
     this.screen.render();
   }
 
+
   private createScreen(): blessed.Widgets.Screen {
+    const program = blessed.program({
+      //@ts-ignore
+      input: ttyIn,
+
+      //@ts-ignore
+      output: ttyOut
+    })
     return blessed.screen({
-      smartCSR: false,
+      program: program,
+      smartCSR: true,
       title: 'Blessed Fuzzy Finder',
       fullUnicode: true,
     });
@@ -121,11 +112,10 @@ export class FluentFinderUI {
       height: 1,
       width: '100%',
       style: {
-        bg: 'blue',
+        bg: 'black',
         fg: 'white'
       },
       content: '',
-      //inputOnFocus: true, // `readInput` の代わりにこれを使用
     });
   }
 
@@ -140,7 +130,9 @@ export class FluentFinderUI {
       vi: true,
       style: {
         selected: {
-          bg: 'green',
+          bold: true,
+          inverse: true,
+          fg: "red"
         },
       },
       items: [], // 初期表示
@@ -154,9 +146,16 @@ export class FluentFinderUI {
       left: '50%',
       height: '100%-1',
       width: '50%',
+      border: {
+        type: 'line'
+      },
       keys: false,
       vi: false,
-      style: {},
+      style: {
+        border: {
+          fg: 'white'
+        }
+      },
     });
     box.content = highlight(PLACEHOLDER, { language: 'python', ignoreIllegals: true });
     return box;
@@ -172,8 +171,11 @@ export class FluentFinderUI {
    * プレビューの内容を更新します。
    * @param title プレビューに含めるタイトル文字列
    */
-  private updatePreviewWithTitle(title: string): void {
-    this.preview.content = highlight(PLACEHOLDER + title, { language: "python", ignoreIllegals: true });
+  private updatePreviewWithTitle(content: string, language?: string): void {
+    this.preview.content = highlight(content, {
+      language: language ?? "",
+      ignoreIllegals: true
+    });
     this.screen.render();
   }
 
@@ -183,18 +185,19 @@ export class FluentFinderUI {
   private updatePreview(): void {
     // @ts-ignore
     const idx = this.list.selected;
-    const selectedItem = this.list.getItem(idx);
-    const title = selectedItem ? selectedItem.content : "";
-    this.updatePreviewWithTitle(title);
+    const selectedItem = this.currentResult[idx]
+    if (!selectedItem) throw Error("selectedItem is undefined")
+    this.updatePreviewWithTitle(selectedItem.content, selectedItem.language);
   }
 
   /**
    * リストの内容をフィルタリングされたアイテムで更新します。
    * @param items 表示するアイテムの配列
    */
-  private updateList(items: string[]): void {
+  public updateList(items: ListItem[]): void {
+    this.currentResult = items
     this.list.clearItems()
-    this.list.setItems(items);
+    this.list.setItems(items.map(i => i.name));
 
     // リストのカーソルをリセット
     if (items.length > 0) {
@@ -202,15 +205,15 @@ export class FluentFinderUI {
     }
 
     // プレビューの初期更新
-    const title = items[0] ?? "";
-    this.updatePreviewWithTitle(title);
+    const item = items.at(0);
+    this.updatePreviewWithTitle(item?.content ?? "", item?.language ?? "")
   }
 
   /**
    * 検索クエリが変更されたときの処理を行います。
    * **`blessed.textbox` の `change` イベントを使用することで、値が更新された後に検索を実行できます。**
    */
-  private handleQueryChange(key: KeyInput): void {
+  private async handleQueryChange(key: KeyInput): Promise<void> {
     let query = this.input.value.trim();
     if (key.name) {
       if (key.name === 'backspace') {
@@ -219,17 +222,17 @@ export class FluentFinderUI {
         try {
           // @ts-ignore
           const listIdx: number = this.list.selected;
-          const selectedItem = this.list.getItem(listIdx);
+          const selectedItem = this.currentResult.at(listIdx)
 
           if (selectedItem) {
-            const content = selectedItem.content;
             this.screen.destroy();
-            console.log(content);
+            console.log(JSON.stringify(selectedItem));
+            ttyIn.setRawMode(false);
+            ttyIn.pause();
+            ttyIn.destroy();
+            ttyOut.end();
           }
         } finally {
-
-          this.deinitCallback()
-          setTimeout(()=>process.exit(0),1000)
 
         }
       } else if (key.name === 'up') {
@@ -242,24 +245,35 @@ export class FluentFinderUI {
         return;
       } else if (!(key.ctrl || key.meta || key.shift) && key.name.length === 1) {
         query += key.name
+      } else if (key.ctrl && key.name === "c") {
+        this.screen.destroy()
+        this.destroyTTY()
       }
     } else {
       query += key.full
     }
 
 
-    if (query === '') {
-      // クエリがない場合は全リストを表示
-      this.updateList(this.allItems);
-    } else {
-      // ファジーマッチングでフィルタリング
-      const filteredItems = this.allItems.filter(item =>
-        FluentFinderUI.fuzzyMatch(query, item)
-      );
+    const res = await this.core.search({
+      queryText: query,
+      isJsonOutput: true,
+      k: 20,
+      dbPath: ":memory:"
+    })
 
-      // リストを更新
-      this.updateList(filteredItems);
-    }
+    // リストを更新
+    this.updateList(
+      res
+        .sort((a, b) => a.rank - b.rank)
+        .map(r => {
+          return {
+            name: `${r.file}:${r.entity}`,
+            content: r.contentSnippet,
+            language: r.language,
+            cursorInfo: r.cursorInfo,
+          }
+        }));
+    //}
     this.screen.render();
   }
 
@@ -269,7 +283,9 @@ export class FluentFinderUI {
   private bindKeys(): void {
     // プログラム終了処理
     this.screen.key(['escape', 'q', 'C-c'], () => {
-      return process.exit(0);
+      //return process.exit(0);
+      this.screen.destroy()
+      this.destroyTTY()
     });
 
   }
@@ -278,24 +294,50 @@ export class FluentFinderUI {
    * 入力ボックスのイベントを設定します。
    */
   private bindInputEvents(): void {
-    this.input.on('keypress', (ch, key) => {
+    this.input.on('keypress', (_ch, key) => {
       this.handleQueryChange(key);
     });
 
   }
 
+
   /**
    * アプリケーションを実行します。
    */
   public run(): void {
-    //this.screen.render();
+    this.screen.render();
     this.input.readInput(); // 入力待ちを開始
+  }
+
+  private destroyTTY() {
+    ttyIn.setRawMode(false);
+    ttyIn.pause();
+    ttyIn.destroy();
+    ttyOut.end();
   }
 }
 
 const core = await FlfCodeSearchCore.init(":memory:")
-console.log("Indexing...")
-core.indexDirectory(".")
-const interactiveUI = new FluentFinderUI(allItems, () => core.deinit())
+ttyOut.write("Indexing...\n")
+const interactiveUI = new FluentFinderUI(core, [])
+core.indexDirectory(".").then(async () => {
+  const initList = await core.search({
+    queryText: " ",
+    isJsonOutput: true,
+    k: 20,
+    dbPath: ":memory:"
+  })
+  interactiveUI.updateList(initList
+    .sort((a, b) => a.rank - b.rank)
+    .map(r => {
+      return {
+        name: `${r.file}:${r.entity}`,
+        content: r.contentSnippet,
+        language: r.language,
+        cursorInfo: r.cursorInfo,
+      }
+    }))
+})
 interactiveUI.run()
+
 

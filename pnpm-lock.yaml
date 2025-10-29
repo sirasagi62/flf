@@ -18,24 +18,24 @@ importers:
         specifier: ^2.1.11
         version: 2.1.11
       code-chopper:
-        specifier: ^0.1.4
-        version: 0.1.4(@types/react@19.2.2)
+        specifier: ^0.1.5
+        version: 0.1.5(@types/react@19.2.2)
       debounce:
         specifier: ^2.2.0
         version: 2.2.0
       veqlite:
-        specifier: ^0.1.1
-        version: 0.1.1(@types/node@24.9.1)(typescript@5.9.3)
+        specifier: ^0.2.1
+        version: 0.2.1(@types/node@24.9.2)(typescript@5.9.3)
     devDependencies:
       '@types/blessed':
         specifier: ^0.1.25
         version: 0.1.25
       '@types/node':
-        specifier: ^24.9.1
-        version: 24.9.1
+        specifier: ^24.9.2
+        version: 24.9.2
       ts-node:
         specifier: ^10.9.2
-        version: 10.9.2(@types/node@24.9.1)(typescript@5.9.3)
+        version: 10.9.2(@types/node@24.9.2)(typescript@5.9.3)
       typescript:
         specifier: ^5.9.3
         version: 5.9.3
@@ -45,6 +45,9 @@ packages:
   '@cspotcode/source-map-support@0.8.1':
     resolution: {integrity: sha512-IchNf6dN4tHoMFIn/7OE8LWZ19Y6q/67Bmf6vnGREv8RSbBVb9LPJxEcnwrcwX6ixSvaiGoomAUvu4YSxXrVgw==}
     engines: {node: '>=12'}
+
+  '@electric-sql/pglite@0.3.11':
+    resolution: {integrity: sha512-FJtjnEyez8XgmgyE5Ewmx89TGVN+75ZjykFoExApRIbJBMT4dsbsuZkF/YWLuymGDfGFHDACjvENPMEqg4FoWg==}
 
   '@emnapi/runtime@1.6.0':
     resolution: {integrity: sha512-obtUmAHTMjll499P+D9A3axeJFlhdjOWdKUNs/U6QIGT7V5RjcUW1xToAzjvmgTSQhDbYn/NwfTRoJcQ2rNBxA==}
@@ -241,8 +244,8 @@ packages:
   '@types/blessed@0.1.25':
     resolution: {integrity: sha512-kQsjBgtsbJLmG6CJA+Z6Nujj+tq1fcSE3UIowbDvzQI4wWmoTV7djUDhSo5lDjgwpIN0oRvks0SA5mMdKE5eFg==}
 
-  '@types/node@24.9.1':
-    resolution: {integrity: sha512-QoiaXANRkSXK6p0Duvt56W208du4P9Uye9hWLWgGMDTEoKPhuenzNcC4vGUmrNkiOKTlIrBoyNQYNpSwfEZXSg==}
+  '@types/node@24.9.2':
+    resolution: {integrity: sha512-uWN8YqxXxqFMX2RqGOrumsKeti4LlmIMIyV0lgut4jx7KQBcBiW6vkDtIBvHnHIquwNfJhk8v2OtmO8zXWHfPA==}
 
   '@types/react@19.2.2':
     resolution: {integrity: sha512-6mDvHUFSjyT2B2yeNx2nUgMxh9LtOWvkhIU3uePn2I2oyNymUAX1NIsdgviM4CH+JSrp2D2hsMvJOkxY+0wNRA==}
@@ -319,8 +322,8 @@ packages:
   cliui@7.0.4:
     resolution: {integrity: sha512-OcRE68cOsVMXp1Yvonl/fzkQOyjLSu/8bhPDfQt0e0/Eb283TKP20Fs2MqoPsr9SwA595rRCA+QMzYc9nBP+JQ==}
 
-  code-chopper@0.1.4:
-    resolution: {integrity: sha512-4oEVLHYKcavcziMPT4ZSwCYARh50SyMBwxf6+Lib9uKV0Di8FanpadR/C8506+Ghwz5Xe8yENNAmcll9/hZ3Mg==}
+  code-chopper@0.1.5:
+    resolution: {integrity: sha512-mtQOH2FbjGA58kPboLrpDgRZEk7vAD3dkN6QImXwvShcqxXuaJwkH/s4JDLH6hUKegJlemc1vy7bybN0RfT8MQ==}
 
   color-convert@2.0.1:
     resolution: {integrity: sha512-RRECPsj7iu/xb5oKYcsFHSppFNnsj/52OVTRKb4zP5onXwVF3zVmmToNcOfGC+CRDpfK/U584fMg38ZHCaElKQ==}
@@ -486,8 +489,8 @@ packages:
   napi-build-utils@2.0.0:
     resolution: {integrity: sha512-GEbrYkbfF7MoNaoh2iGG84Mnf/WZfB0GdGEsM8wz7Expx/LlWf5U8t9nvJKXSp3qr5IsEbK04cBGhol/KwOsWA==}
 
-  node-abi@3.78.0:
-    resolution: {integrity: sha512-E2wEyrgX/CqvicaQYU3Ze1PFGjc4QYPGsjUrlYkqAE0WjHEZwgOsGMPMzkMse4LjJbDmaEuDX3CM036j5K2DSQ==}
+  node-abi@3.79.0:
+    resolution: {integrity: sha512-Pr/5KdBQGG8TirdkS0qN3B+f3eo8zTOfZQWAxHoJqopMz2/uvRnG+S4fWu/6AZxKei2CP2p/psdQ5HFC2Ap5BA==}
     engines: {node: '>=10'}
 
   node-addon-api@8.5.0:
@@ -800,10 +803,10 @@ packages:
   v8-compile-cache-lib@3.0.1:
     resolution: {integrity: sha512-wa7YjyUGfNZngI/vtK0UHAN+lgDCxBPCylVXGp0zu59Fz5aiGtNXaq3DhIov063MorB+VfufLh3JlF2KdTK3xg==}
 
-  veqlite@0.1.1:
-    resolution: {integrity: sha512-UNg74oT+Nxi2FXf0IgfGxEpbBQb+tRm/AomembGlHaUNvNDvkOmAuUOmbIPNhEwmdjszfoamDSb3ExqNK8CfoQ==}
+  veqlite@0.2.1:
+    resolution: {integrity: sha512-QF0WZpu+pvaNOZXUUOnIXVbbfp7SUIM0CUZ7yb+LagdjHcRE1ma6WfAAIb5bVe5UhrpQ67BXxFOuz4SDuYFZ0w==}
     peerDependencies:
-      typescript: ^5
+      typescript: ^5.9.3
 
   wrap-ansi@7.0.0:
     resolution: {integrity: sha512-YVGIj2kamLSTxw6NsZjoBxfSwsn0ycdesmc4p+Q21c5zPuZ1pl+NfxVdxPtdHvmNVOQ6XSYG4AUtyt/Fi7D16Q==}
@@ -837,6 +840,8 @@ snapshots:
   '@cspotcode/source-map-support@0.8.1':
     dependencies:
       '@jridgewell/trace-mapping': 0.3.9
+
+  '@electric-sql/pglite@0.3.11': {}
 
   '@emnapi/runtime@1.6.0':
     dependencies:
@@ -986,9 +991,9 @@ snapshots:
 
   '@types/blessed@0.1.25':
     dependencies:
-      '@types/node': 24.9.1
+      '@types/node': 24.9.2
 
-  '@types/node@24.9.1':
+  '@types/node@24.9.2':
     dependencies:
       undici-types: 7.16.0
 
@@ -1040,7 +1045,7 @@ snapshots:
 
   bun-types@1.3.1(@types/react@19.2.2):
     dependencies:
-      '@types/node': 24.9.1
+      '@types/node': 24.9.2
       '@types/react': 19.2.2
 
   chalk@4.1.2:
@@ -1067,7 +1072,7 @@ snapshots:
       strip-ansi: 6.0.1
       wrap-ansi: 7.0.0
 
-  code-chopper@0.1.4(@types/react@19.2.2):
+  code-chopper@0.1.5(@types/react@19.2.2):
     dependencies:
       bun-types: 1.3.1(@types/react@19.2.2)
       csstype: 3.1.3
@@ -1220,7 +1225,7 @@ snapshots:
 
   napi-build-utils@2.0.0: {}
 
-  node-abi@3.78.0:
+  node-abi@3.79.0:
     dependencies:
       semver: 7.7.3
 
@@ -1273,7 +1278,7 @@ snapshots:
       minimist: 1.2.8
       mkdirp-classic: 0.5.3
       napi-build-utils: 2.0.0
-      node-abi: 3.78.0
+      node-abi: 3.79.0
       pump: 3.0.3
       rc: 1.2.8
       simple-get: 4.0.1
@@ -1292,7 +1297,7 @@ snapshots:
       '@protobufjs/path': 1.1.2
       '@protobufjs/pool': 1.1.0
       '@protobufjs/utf8': 1.1.0
-      '@types/node': 24.9.1
+      '@types/node': 24.9.2
       long: 5.3.2
 
   pump@3.0.3:
@@ -1545,14 +1550,14 @@ snapshots:
       node-addon-api: 8.5.0
       node-gyp-build: 4.8.4
 
-  ts-node@10.9.2(@types/node@24.9.1)(typescript@5.9.3):
+  ts-node@10.9.2(@types/node@24.9.2)(typescript@5.9.3):
     dependencies:
       '@cspotcode/source-map-support': 0.8.1
       '@tsconfig/node10': 1.0.11
       '@tsconfig/node12': 1.0.11
       '@tsconfig/node14': 1.0.3
       '@tsconfig/node16': 1.0.4
-      '@types/node': 24.9.1
+      '@types/node': 24.9.2
       acorn: 8.15.0
       acorn-walk: 8.3.4
       arg: 4.1.3
@@ -1580,12 +1585,13 @@ snapshots:
 
   v8-compile-cache-lib@3.0.1: {}
 
-  veqlite@0.1.1(@types/node@24.9.1)(typescript@5.9.3):
+  veqlite@0.2.1(@types/node@24.9.2)(typescript@5.9.3):
     dependencies:
+      '@electric-sql/pglite': 0.3.11
       '@huggingface/transformers': 3.7.6
       better-sqlite3: 12.4.1
       sqlite-vec: 0.1.7-alpha.2
-      ts-node: 10.9.2(@types/node@24.9.1)(typescript@5.9.3)
+      ts-node: 10.9.2(@types/node@24.9.2)(typescript@5.9.3)
       typescript: 5.9.3
     transitivePeerDependencies:
       - '@swc/core'

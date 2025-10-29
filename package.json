@@ -2,8 +2,12 @@
   "name": "flf",
   "version": "1.0.0",
   "description": "",
-  "type":"module",
-  "main": "index.js",
+  "type": "module",
+  "main": "dist/index.js",
+  "types": "dist/index.d.ts",
+  "bin":{
+    "flf":"./dist/index.js"
+  },
   "scripts": {
     "test": "echo \"Error: no test specified\" && exit 1"
   },
@@ -15,13 +19,13 @@
     "@huggingface/transformers": "^3.7.6",
     "blessed": "^0.1.81",
     "cli-highlight": "^2.1.11",
-    "code-chopper": "^0.1.4",
+    "code-chopper": "^0.1.5",
     "debounce": "^2.2.0",
-    "veqlite": "^0.1.1"
+    "veqlite": "^0.2.1"
   },
   "devDependencies": {
     "@types/blessed": "^0.1.25",
-    "@types/node": "^24.9.1",
+    "@types/node": "^24.9.2",
     "ts-node": "^10.9.2",
     "typescript": "^5.9.3"
   }
