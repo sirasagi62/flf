@@ -14,8 +14,8 @@
     "run": "tsc && node ./dist/index.js"
   },
   "keywords": [],
-  "author": "",
-  "license": "ISC",
+  "author": "OKABE Gota",
+  "license": "MIT",
   "packageManager": "pnpm@10.19.0",
   "dependencies": {
     "@huggingface/transformers": "^3.7.6",
