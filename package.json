@@ -1,12 +1,11 @@
 {
-  "name": "flf",
+  "name": "@sirasagi62/flf",
   "version": "0.1.0",
   "description": "",
   "type": "module",
-  "main": "dist/index.js",
   "types": "dist/index.d.ts",
   "bin": {
-    "flf": "./dist/index.js"
+    "flf": "dist/index.js"
   },
   "scripts": {
     "test": "echo \"Error: no test specified\" && exit 1",

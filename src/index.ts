@@ -1,4 +1,4 @@
-#!/usr/bin/env perl
+#!/usr/bin/env node
 
 // Supress warining on iTerm
 import os from "node:os";
