@@ -1,7 +1,12 @@
+#!/usr/bin/env perl
+
 // Supress warining on iTerm
 import os from "node:os";
 if (os.type() === "Darwin" && process.env.TERM?.includes("xterm"))
   process.env.TERM = "iTerm.app"
+
+import yargs from 'yargs';
+import { hideBin } from 'yargs/helpers'
 
 import blessed from 'blessed';
 import { highlight } from 'cli-highlight';
@@ -10,11 +15,30 @@ import { Point } from "code-chopper";
 import fs from "node:fs"
 import tty from "node:tty"
 
-const ttyIn = new tty.ReadStream(fs.openSync("/dev/tty", "r"));
-const ttyOut = new tty.WriteStream(fs.openSync("/dev/tty", "w"));
-ttyIn.resume();
-ttyIn.setRawMode(true);
+type OutputType = "nvim" | "vim" | "emacs" | "cmd"
+interface UIOptions {
+  editor: OutputType
+}
+const setupTTY = () => {
+  if (process.versions.bun && os.type() === "Darwin") {
+    console.log(`Due to a bug in Bun on macOS, the pipe functionality is not available in Bun.
+See here for details: https://github.com/oven-sh/bun/issues/24158`)
+    return { input: process.stdin, output: process.stdout };
+  } else {
 
+    const ttyIn = new tty.ReadStream(fs.openSync("/dev/tty", "r"));
+    const ttyOut = new tty.WriteStream(fs.openSync("/dev/tty", "w"));
+    ttyIn.resume();
+    ttyIn.setRawMode(true);
+    return {
+      input: ttyIn,
+      output: ttyOut
+    }
+  }
+}
+
+const { input: ttyIn, output: ttyOut } = setupTTY()
+const DEBUG = false
 const LOGO = `
 
  ███████╗ ██╗      ███████╗
@@ -24,11 +48,6 @@ const LOGO = `
  ██║      ███████╗ ██║
  ╚═╝      ╚══════╝ ╚═╝
 `
-const PLACEHOLDER = `
-def func1():
-  comp = comp()
-  if comp > 0:
-      return `
 // 検索対象のリスト
 interface UnicodeKey {
   ch: string,
@@ -46,7 +65,8 @@ interface AsciiKey {
 type KeyInput = UnicodeKey | AsciiKey
 
 interface ListItem {
-  name: string,
+  filePath: string,
+  entity: string,
   content: string,
   language: string
   cursorInfo: {
@@ -66,10 +86,10 @@ export class FluentFinderUI {
   private preview: blessed.Widgets.BoxElement;
 
   private currentResult: ListItem[] = []
+  private options
 
 
-
-  constructor(core: FlfCodeSearchCore, initList: ListItem[]) {
+  constructor(core: FlfCodeSearchCore, options: UIOptions) {
     this.screen = this.createScreen();
     this.input = this.createInput();
     this.list = this.createList();
@@ -81,7 +101,8 @@ export class FluentFinderUI {
     this.bindInputEvents();
 
     // 初期表示
-    this.updateList(initList);
+    this.updateList([]);
+    this.options = options
     this.updatePreviewWithTitle(LOGO)
     this.input.focus();
     this.screen.render();
@@ -157,7 +178,7 @@ export class FluentFinderUI {
         }
       },
     });
-    box.content = highlight(PLACEHOLDER, { language: 'python', ignoreIllegals: true });
+    box.content = highlight("", { language: '', ignoreIllegals: true });
     return box;
   }
 
@@ -197,7 +218,7 @@ export class FluentFinderUI {
   public updateList(items: ListItem[]): void {
     this.currentResult = items
     this.list.clearItems()
-    this.list.setItems(items.map(i => i.name));
+    this.list.setItems(items.map(i => this.convertListItemToListTitle(i)));
 
     // リストのカーソルをリセット
     if (items.length > 0) {
@@ -226,7 +247,7 @@ export class FluentFinderUI {
 
           if (selectedItem) {
             this.screen.destroy();
-            console.log(JSON.stringify(selectedItem));
+            this.showResult(selectedItem, this.options.editor)
             ttyIn.setRawMode(false);
             ttyIn.pause();
             ttyIn.destroy();
@@ -267,7 +288,8 @@ export class FluentFinderUI {
         .sort((a, b) => a.rank - b.rank)
         .map(r => {
           return {
-            name: `${r.file}:${r.entity}`,
+            filePath: r.file,
+            entity: r.entity,
             content: r.contentSnippet,
             language: r.language,
             cursorInfo: r.cursorInfo,
@@ -315,11 +337,38 @@ export class FluentFinderUI {
     ttyIn.destroy();
     ttyOut.end();
   }
+
+  private showResult(result: ListItem, outputType: OutputType = "nvim") {
+    let query = JSON.stringify(result)
+    if (outputType === "nvim" || outputType === "vim") {
+      query = `<cmd>tabf +${result.cursorInfo.start.row + 1} ${result.filePath}<CR>`
+    }
+    console.log(query)
+    if (DEBUG) {
+      ttyOut.write(query)
+      ttyOut.write("\n")
+    }
+  }
+  private convertListItemToListTitle(item: ListItem) {
+    return `${item.filePath}#${item.entity}`
+  }
 }
 
+const argv = yargs(hideBin(process.argv))
+  .option('editor', {
+    alias: 'e',
+    description: 'Editor command to start up new buffer',
+    choices: ['nvim', 'vim', 'emacs', 'cmd'],
+    default: 'cmd',
+    type: 'string'
+  })
+  .help()
+  .parseSync()
 const core = await FlfCodeSearchCore.init(":memory:")
 ttyOut.write("Indexing...\n")
-const interactiveUI = new FluentFinderUI(core, [])
+const interactiveUI = new FluentFinderUI(core, {
+  editor: argv.editor as OutputType
+})
 core.indexDirectory(".").then(async () => {
   const initList = await core.search({
     queryText: " ",
@@ -331,7 +380,8 @@ core.indexDirectory(".").then(async () => {
     .sort((a, b) => a.rank - b.rank)
     .map(r => {
       return {
-        name: `${r.file}:${r.entity}`,
+        filePath: r.file,
+        entity: r.entity,
         content: r.contentSnippet,
         language: r.language,
         cursorInfo: r.cursorInfo,
