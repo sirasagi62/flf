@@ -1,22 +1,29 @@
 {
   "name": "@sirasagi62/flf",
   "version": "0.1.0",
-  "description": "",
+  "description": "A command-line tool for semantically exploring code.",
   "type": "module",
+  "main": "dist/index.js",
   "types": "dist/index.d.ts",
   "bin": {
     "flf": "dist/index.js"
   },
   "scripts": {
     "test": "echo \"Error: no test specified\" && exit 1",
-    "prepare": "tsc",
+    "prepublishOnly": "npm run build",
     "build": "tsc",
-    "run": "tsc && node ./dist/index.js"
+    "start": "node ./dist/index.js",
+    "dev": "ts-node src/index.ts"
   },
-  "keywords": [],
+  "keywords": [
+    "fluent-finder",
+    "tool",
+    "fluent",
+    "finder",
+    "flf"
+  ],
   "author": "OKABE Gota",
   "license": "MIT",
-  "packageManager": "pnpm@10.19.0",
   "dependencies": {
     "@huggingface/transformers": "^3.7.6",
     "blessed": "^0.1.81",
@@ -32,5 +39,8 @@
     "@types/yargs": "^17.0.34",
     "ts-node": "^10.9.2",
     "typescript": "^5.9.3"
+  },
+  "publishConfig": {
+    "access": "public"
   }
 }
