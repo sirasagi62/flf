@@ -28,7 +28,7 @@
     "@huggingface/transformers": "^3.7.6",
     "blessed": "^0.1.81",
     "cli-highlight": "^2.1.11",
-    "code-chopper": "^0.1.5",
+    "code-chopper": "^0.1.6",
     "debounce": "^2.2.0",
     "veqlite": "^0.2.1",
     "yargs": "^18.0.0"

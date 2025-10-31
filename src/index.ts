@@ -10,12 +10,13 @@ import { hideBin } from 'yargs/helpers'
 
 import blessed from 'blessed';
 import { highlight } from 'cli-highlight';
-import { FlfCodeSearchCore } from "./core.js";
-import { Point } from "code-chopper";
 import fs from "node:fs"
 import tty from "node:tty"
+import { FlfDirCore } from "./dircore.js";
+import { IFlfCore, ListItem, OutputType } from "./types.js";
+import { FlfBufferCore } from "./buffercore.js";
 
-type OutputType = "nvim" | "vim" | "emacs" | "cmd"
+
 interface UIOptions {
   editor: OutputType
 }
@@ -64,22 +65,12 @@ interface AsciiKey {
 }
 type KeyInput = UnicodeKey | AsciiKey
 
-interface ListItem {
-  filePath: string,
-  entity: string,
-  content: string,
-  language: string
-  cursorInfo: {
-    start: Point,
-    end: Point
-  }
-}
 
 /**
  * Blessed を使用したターミナルベースのファジーファインダーを実装するクラス。
  */
 export class FluentFinderUI {
-  private core: FlfCodeSearchCore;
+  private core: IFlfCore;
   private screen: blessed.Widgets.Screen;
   private input: blessed.Widgets.TextboxElement;
   private list: blessed.Widgets.ListElement;
@@ -89,7 +80,7 @@ export class FluentFinderUI {
   private options
 
 
-  constructor(core: FlfCodeSearchCore, options: UIOptions) {
+  constructor(core: IFlfCore, options: UIOptions) {
     this.screen = this.createScreen();
     this.input = this.createInput();
     this.list = this.createList();
@@ -241,6 +232,10 @@ export class FluentFinderUI {
         query = [...query].slice(0, -1).join('')
       } else if (key.name === 'enter') {
         try {
+          if (this.currentResult.length === 0) {
+            this.screen.destroy()
+            this.destroyTTY()
+          }
           // @ts-ignore
           const listIdx: number = this.list.selected;
           const selectedItem = this.currentResult.at(listIdx)
@@ -248,10 +243,7 @@ export class FluentFinderUI {
           if (selectedItem) {
             this.screen.destroy();
             this.showResult(selectedItem, this.options.editor)
-            ttyIn.setRawMode(false);
-            ttyIn.pause();
-            ttyIn.destroy();
-            ttyOut.end();
+            this.destroyTTY()
           }
         } finally {
 
@@ -339,10 +331,7 @@ export class FluentFinderUI {
   }
 
   private showResult(result: ListItem, outputType: OutputType = "nvim") {
-    let query = JSON.stringify(result)
-    if (outputType === "nvim" || outputType === "vim") {
-      query = `<cmd>tabf +${result.cursorInfo.start.row + 1} ${result.filePath}<CR>`
-    }
+    const query = this.core.formatResult(result,outputType)
     console.log(query)
     if (DEBUG) {
       ttyOut.write(query)
@@ -354,40 +343,105 @@ export class FluentFinderUI {
   }
 }
 
-const argv = yargs(hideBin(process.argv))
-  .option('editor', {
-    alias: 'e',
-    description: 'Editor command to start up new buffer',
-    choices: ['nvim', 'vim', 'emacs', 'cmd'],
-    default: 'cmd',
-    type: 'string'
-  })
-  .help()
-  .parseSync()
-const core = await FlfCodeSearchCore.init(":memory:")
-ttyOut.write("Indexing...\n")
-const interactiveUI = new FluentFinderUI(core, {
-  editor: argv.editor as OutputType
-})
-core.indexDirectory(".").then(async () => {
-  const initList = await core.search({
-    queryText: " ",
-    isJsonOutput: true,
-    k: 20,
-    dbPath: ":memory:"
-  })
-  interactiveUI.updateList(initList
-    .sort((a, b) => a.rank - b.rank)
-    .map(r => {
-      return {
-        filePath: r.file,
-        entity: r.entity,
-        content: r.contentSnippet,
-        language: r.language,
-        cursorInfo: r.cursorInfo,
-      }
-    }))
-})
-interactiveUI.run()
+const dirSubCommand = async (path: string, editor: OutputType) => {
+  ttyOut.write(`Indexing...:${path}\n`)
 
+  const core = await FlfDirCore.init(":memory:")
+  core.indexDirectory(path).then(async () => {
+    const initList = await core.search({
+      queryText: " ",
+      isJsonOutput: true,
+      k: 20,
+      dbPath: ":memory:"
+    })
+    const interactiveUI = new FluentFinderUI(core, {
+      editor
+    })
+    interactiveUI.updateList(initList
+      .sort((a, b) => a.rank - b.rank)
+      .map(r => {
+        return {
+          filePath: r.file,
+          entity: r.entity,
+          content: r.contentSnippet,
+          language: r.language,
+          cursorInfo: r.cursorInfo,
+        }
+      }))
+    interactiveUI.run()
+  })
+}
+
+const bufSubCommand = async (path: string, editor: OutputType) => {
+  ttyOut.write(`Indexing Buffers...\n`)
+
+  const core = await FlfBufferCore.init(":memory:")
+  core.index(path).then(async () => {
+    const initList = await core.search({
+      queryText: " ",
+      isJsonOutput: true,
+      k: 20,
+      dbPath: ":memory:"
+    })
+    const interactiveUI = new FluentFinderUI(core, {
+      editor
+    })
+    interactiveUI.updateList(initList
+      .sort((a, b) => a.rank - b.rank)
+      .map(r => {
+        return {
+          filePath: r.file,
+          entity: r.entity,
+          content: r.contentSnippet,
+          language: r.language,
+          cursorInfo: r.cursorInfo,
+        }
+      }))
+    interactiveUI.run()
+  })
+}
+
+yargs(hideBin(process.argv))
+  .command('dir', 'Perform fluent search on file paths (Directory search)', (yargs) => {
+    return yargs
+      .option('path', {
+        alias: 'p',
+        description: 'path to fluent search',
+        default: '.',
+        type: 'string'
+      })
+      .option('editor', {
+        alias: 'e',
+        description: 'Editor command to start up new buffer',
+        choices: ['nvim', 'vim', 'emacs', 'cmd'],
+        default: 'cmd',
+        type: 'string'
+      })
+  }, (argv) => {
+    dirSubCommand(argv.path, argv.editor as OutputType)
+  })
+
+  .command('buf', 'Perform fluent search on current editor buffers', (yargs) => {
+    return yargs
+      .option('path', {
+        alias: 'p',
+        description: 'path to fluent search',
+        default: '.',
+        type: 'string'
+      })
+      .option('editor', {
+        alias: 'e',
+        description: 'Editor command to start up new buffer',
+        choices: ['nvim', 'vim', 'emacs', 'cmd'],
+        default: 'cmd',
+        type: 'string'
+      })
+  }, (argv) => {
+    bufSubCommand(argv.path, argv.editor as OutputType)
+  })
+
+  .help()
+  .demandCommand(1, 'You need to specify at least one command.')
+  .strict()
+  .parseSync()
 

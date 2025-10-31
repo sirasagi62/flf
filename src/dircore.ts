@@ -15,35 +15,19 @@ import {
 // import { BetterSqlite3Adapter } from "veqlite/better-sqlite3"
 //import { NodeSQLiteAdapter } from "veqlite/node";
 import { PGLiteAdapter } from "veqlite/pglite";
+import { ChunkMeta, IFlfCore, ListItem, OutputType, QueryProps } from "./types.js";
 //import { BunSQLiteAdapter } from "veqlite/bun";
 
 
 // Set environment variables for transformers.js
 env.allowRemoteModels = true; // Allow fetching models from Hugging Face Hub if not found locally
 
-type ChunkMeta = {
-  fileName: string
-  parentInfo: string
-  inlineDocument: string
-  entity: string
-  language: LanguageEnum
-  cursorInfo: {
-    start: Point
-    end: Point
-  }
-} & BaseMetadata
 
-interface QueryProps {
-  queryText: string,
-  k: number,
-  isJsonOutput: boolean,
-  dbPath: string
-}
 
-export class FlfCodeSearchCore {
+export class FlfDirCore implements IFlfCore {
   db?: VeqliteDB<ChunkMeta>;
   public static async init(dbPath: string) {
-    const _this = new FlfCodeSearchCore()
+    const _this = new FlfDirCore()
 
     // Initialize the embedding pipeline
     const embeddingModel = await HFLocalEmbeddingModel.init(
@@ -124,13 +108,21 @@ export class FlfCodeSearchCore {
     }));
 
   }
+  formatResult(result: ListItem, outputType: OutputType): string {
+    let query = JSON.stringify(result)
+    if (outputType === "nvim" || outputType === "vim") {
+      query = `<cmd>tabf +${result.cursorInfo.start.row + 1} ${result.filePath}<CR>`
+    }
+    return query
+  }
+
   deinit() {
     if(this.db) this.db.close()
   }
 }
 
 export async function buildFlfCodeSearchCore(dbPath: string) {
-  const core = await FlfCodeSearchCore.init(dbPath)
+  const core = await FlfDirCore.init(dbPath)
   return {
     core,
     [Symbol.dispose]() {
@@ -139,15 +131,16 @@ export async function buildFlfCodeSearchCore(dbPath: string) {
   };
 }
 
+// This unused print UI
 export class FlfCodeSearchUI {
-  core?: FlfCodeSearchCore;
+  core?: FlfDirCore;
   isJsonOutput: boolean = false
   constructor(isJsonOutput: boolean) {
     this.isJsonOutput = isJsonOutput
   }
   public static async init(dbPath: string, isJsonOutput: boolean) {
     const _this = new FlfCodeSearchUI(isJsonOutput)
-    _this.core = await FlfCodeSearchCore.init(dbPath)
+    _this.core = await FlfDirCore.init(dbPath)
     return _this
   }
   async executeIndex(
