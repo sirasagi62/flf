@@ -16,11 +16,11 @@ You can use [flf-vim](https://github.com/sirasagi62/flf-vim) for Vim/Neovim inte
 > [!WARNING]
 > Due to [the bug in Bun](https://github.com/oven-sh/bun/issues/24158) that can prevent proper operation, please install using Node.js with `npm` or `pnpm` instead.
 
-### Using pnpm
+### Using Node.js
 
 ```bash
-npm install -g @sirasagi62/flf
-pnpm add -g @sirasagi62/flf
+npm install -g @sirasagi62/flf #npm
+pnpm add -g @sirasagi62/flf    #pnpm
 ```
 
 > Flf uses `@huggingface/transformers` and `veqlite` under the hood for embedding generation and vector search. 
