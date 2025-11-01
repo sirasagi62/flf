@@ -13,7 +13,8 @@ You can use [flf-vim](https://github.com/sirasagi62/flf-vim) for Vim/Neovim inte
 
 ## 🚀 Installation
 
-Due to [the bug in Bun](https://github.com/oven-sh/bun/issues/24158) that can prevent proper operation, please install using Node.js with `npm` or `pnpm` instead.
+> [!WARNING]
+> Due to [the bug in Bun](https://github.com/oven-sh/bun/issues/24158) that can prevent proper operation, please install using Node.js with `npm` or `pnpm` instead.
 
 ### Using pnpm
 
@@ -139,13 +140,10 @@ All processing is done locally — no data leaves your machine.
 ---
 
 ## 📷 Screenshots
-Coming soon
-<!-- 
-![Fluent Finder in action](assets/capture.gif)
+![Fluent Finder in directory](assets/flfdir.gif)
 
 Neovim integration:
-![Neovim integration](assets/nvim.gif)
- -->
+![Neovim integration](./assets/flfbuf.gif)
 ---
 
 ## 📄 License
