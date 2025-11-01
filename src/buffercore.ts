@@ -18,7 +18,6 @@ import { ChunkMeta, QueryProps, IFlfCore, SearchResult, ListItem, OutputType } f
 // Set environment variables for transformers.js
 env.allowRemoteModels = true; // Allow fetching models from Hugging Face Hub if not found locally
 
-
 // TODO: Except for the `index` function, the implementation is the same as `FlfDirCore`, so I'll combine them later.
 export class FlfBufferCore implements IFlfCore {
   db?: VeqliteDB<ChunkMeta>;
@@ -45,9 +44,25 @@ export class FlfBufferCore implements IFlfCore {
     const bufferInfo: BufferInfo[] = await loadBufferInfoAsync(bufferInfoPath)
     const factory = createParserFactory();
     const options: Options = {
-      filter: (_, node) => {
-        if (node.type.includes("import") || node.type.includes("comment")) {
+      filter: (lang, node) => {
+        // Exclude import statements
+        if (node.type.includes("import")) {
           return false;
+        }
+        if (lang === "typescript" || lang === "javascript") {
+          if (node.type === "variable_declaration" || node.type === "lexical_declaration") {
+            // Filter out variables that are not arrow functions
+            const isArrowFunction = node.children.find(c => c.type === "variable_declarator")?.childForFieldName("value")?.type === "arrow_function";
+            return isArrowFunction;
+          }
+        } else {
+          return node.type.includes("function") ||
+            node.type.includes("method") ||
+            node.type.includes("class") ||
+            node.type.includes("interface") ||
+            node.type.includes("struct") ||
+            node.type.includes("enum") ||
+            node.type.includes("trait")
         }
         return true;
       },
@@ -56,11 +71,7 @@ export class FlfBufferCore implements IFlfCore {
 
 
     try {
-      let chunks: BoundaryChunk[] = []
-      for (const bi of bufferInfo) {
-        const i = await parseCodeWithFilePath(bi.content, bi.buffername, factory, options)
-        chunks = [...chunks, ...i]
-      }
+      const chunks = (await Promise.all(bufferInfo.map(b=>parseCodeWithFilePath(b.content,b.buffername,factory,options)))).flat()
       db.bulkInsertChunks(chunks.map(c => {
         return {
           content: c.content,

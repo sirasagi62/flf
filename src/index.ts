@@ -40,6 +40,7 @@ See here for details: https://github.com/oven-sh/bun/issues/24158`)
 
 const { input: ttyIn, output: ttyOut } = setupTTY()
 const DEBUG = false
+const FIND_K = 100
 const LOGO = `
 
  ███████╗ ██╗      ███████╗
@@ -111,7 +112,7 @@ export class FluentFinderUI {
     return blessed.screen({
       program: program,
       smartCSR: true,
-      title: 'Blessed Fuzzy Finder',
+      // title: 'Blessed Fuzzy Finder',
       fullUnicode: true,
     });
   }
@@ -178,7 +179,6 @@ export class FluentFinderUI {
     this.screen.append(this.list);
     this.screen.append(this.preview);
   }
-
   /**
    * プレビューの内容を更新します。
    * @param title プレビューに含めるタイトル文字列
@@ -210,6 +210,7 @@ export class FluentFinderUI {
     this.currentResult = items
     this.list.clearItems()
     this.list.setItems(items.map(i => this.convertListItemToListTitle(i)));
+
 
     // リストのカーソルをリセット
     if (items.length > 0) {
@@ -270,7 +271,7 @@ export class FluentFinderUI {
     const res = await this.core.search({
       queryText: query,
       isJsonOutput: true,
-      k: 20,
+      k: FIND_K,
       dbPath: ":memory:"
     })
 
@@ -331,7 +332,7 @@ export class FluentFinderUI {
   }
 
   private showResult(result: ListItem, outputType: OutputType = "nvim") {
-    const query = this.core.formatResult(result,outputType)
+    const query = this.core.formatResult(result, outputType)
     console.log(query)
     if (DEBUG) {
       ttyOut.write(query)
@@ -339,7 +340,17 @@ export class FluentFinderUI {
     }
   }
   private convertListItemToListTitle(item: ListItem) {
-    return `${item.filePath}#${item.entity}`
+    const title = item.entity === '' ? this.extractBeforeFirstBrace(item.content.replaceAll('\n',' ')) : item.entity.trim().replaceAll('\n', '')
+    return `${item.filePath}#${title}`
+  }
+
+  private extractBeforeFirstBrace(text: string): string {
+    const index = text.indexOf('{');
+    if (index === -1) {
+      return text;
+    } else {
+      return text.slice(0, index-1);
+    }
   }
 }
 
@@ -351,7 +362,7 @@ const dirSubCommand = async (path: string, editor: OutputType) => {
     const initList = await core.search({
       queryText: " ",
       isJsonOutput: true,
-      k: 20,
+      k: FIND_K,
       dbPath: ":memory:"
     })
     const interactiveUI = new FluentFinderUI(core, {
@@ -380,7 +391,7 @@ const bufSubCommand = async (path: string, editor: OutputType) => {
     const initList = await core.search({
       queryText: " ",
       isJsonOutput: true,
-      k: 20,
+      k: FIND_K,
       dbPath: ":memory:"
     })
     const interactiveUI = new FluentFinderUI(core, {

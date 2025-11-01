@@ -50,9 +50,25 @@ export class FlfDirCore implements IFlfCore {
     if (!db) throw Error("DB must be initialized before indexing.")
     const factory = createParserFactory();
     const options: Options = {
-      filter: (_, node) => {
-        if (node.type.includes("import") || node.type.includes("comment")) {
+      filter: (lang, node) => {
+        // Exclude import statements
+        if (node.type.includes("import")) {
           return false;
+        }
+        if (lang === "typescript" || lang === "javascript") {
+          if (node.type === "variable_declaration" || node.type === "lexical_declaration") {
+            // Filter out variables that are not arrow functions
+            const isArrowFunction = node.children.find(c => c.type === "variable_declarator")?.childForFieldName("value")?.type === "arrow_function";
+            return isArrowFunction;
+          }
+        } else {
+          return node.type.includes("function") ||
+            node.type.includes("method") ||
+            node.type.includes("class") ||
+            node.type.includes("interface") ||
+            node.type.includes("struct") ||
+            node.type.includes("enum") ||
+            node.type.includes("trait")
         }
         return true;
       },
