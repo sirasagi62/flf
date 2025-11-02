@@ -1,5 +1,8 @@
 # Fluent Finder (Flf)
 
+> [!NOTE]
+> This project is in the early stages of development, and its performance and behavior may change.
+
 Fluent Finder (Flf) is a **vector-based code search tool** with a **fuzzy-finder-like interactive UI**. It enables fast, semantic search across your codebase by combining code parsing, embedding generation, and similarity search.
 
 Flf supports two primary modes:
